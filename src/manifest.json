@@ -41,7 +41,11 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "coordcloak@extension",
-      "strict_min_version": "63.0"
+      "strict_min_version": "63.0",
+      "data_collection_permissions": {
+        "required": [],
+        "optional": []
+      }
     }
   }
 }
