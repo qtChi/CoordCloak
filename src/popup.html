@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CoordCloak</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 300px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      padding: 0;
+      user-select: none;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-bottom: 1px solid #1e293b;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-icon {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+    .header-title { font-size: 15px; font-weight: 700; color: #f1f5f9; }
+    .header-sub   { font-size: 10px; color: #64748b; margin-top: 1px; }
+
+    /* ── Toggle ── */
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid #1e293b;
+      background: #0f1117;
+    }
+    .toggle-label { font-size: 12px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; }
+    .toggle {
+      position: relative; width: 40px; height: 22px;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; inset: 0; border-radius: 22px;
+      background: #334155; cursor: pointer;
+      transition: background .2s;
+    }
+    .slider::before {
+      content: '';
+      position: absolute; width: 16px; height: 16px; border-radius: 50%;
+      background: #fff; left: 3px; top: 3px;
+      transition: transform .2s;
+    }
+    input:checked + .slider { background: #6366f1; }
+    input:checked + .slider::before { transform: translateX(18px); }
+
+    /* ── Status badge ── */
+    .status {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 16px;
+      font-size: 11px;
+      color: #64748b;
+      border-bottom: 1px solid #1e293b;
+    }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #334155;
+      transition: background .3s;
+    }
+    .dot.active { background: #22c55e; box-shadow: 0 0 6px #22c55e88; }
+    .dot.inactive { background: #ef4444; }
+
+    /* ── Body ── */
+    .body { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+    .field-label {
+      font-size: 10px; font-weight: 600; color: #64748b;
+      text-transform: uppercase; letter-spacing: .06em;
+      margin-bottom: 4px;
+    }
+    .field-row { display: flex; gap: 8px; }
+    .field     { flex: 1; display: flex; flex-direction: column; }
+
+    input[type="number"], input[type="text"] {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      width: 100%;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input[type="number"]:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px #6366f120;
+    }
+    input[disabled] { opacity: .4; cursor: not-allowed; }
+
+    /* ── Presets ── */
+    .presets-label {
+      font-size: 10px; font-weight: 600; color: #64748b;
+      text-transform: uppercase; letter-spacing: .06em;
+      margin-bottom: 6px;
+    }
+    .preset-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 5px;
+    }
+    .preset-btn {
+      background: #1e293b; border: 1px solid #334155;
+      color: #94a3b8; border-radius: 7px;
+      padding: 6px 8px; font-size: 11px;
+      cursor: pointer; text-align: left;
+      transition: all .15s;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .preset-btn:hover:not([disabled]) {
+      background: #273549; border-color: #6366f1; color: #c7d2fe;
+    }
+    .preset-btn[disabled] { opacity: .35; cursor: not-allowed; }
+    .preset-flag { font-size: 14px; }
+
+    /* ── Apply button ── */
+    .apply-btn {
+      width: 100%; padding: 10px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff; border: none; border-radius: 9px;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer; margin-top: 2px;
+      transition: opacity .15s, transform .1s;
+    }
+    .apply-btn:hover:not([disabled]) { opacity: .9; transform: translateY(-1px); }
+    .apply-btn:active:not([disabled]) { transform: translateY(0); }
+    .apply-btn[disabled] { opacity: .35; cursor: not-allowed; }
+
+    /* ── Feedback toast ── */
+    .toast {
+      display: none; align-items: center; gap: 6px;
+      background: #162032; border: 1px solid #22c55e44;
+      border-radius: 7px; padding: 7px 10px;
+      font-size: 11px; color: #4ade80;
+      margin-top: -2px;
+    }
+    .toast.show { display: flex; }
+    .toast.error { border-color: #ef444444; color: #f87171; background: #200f0f; }
+
+    /* ── Divider ── */
+    .divider { height: 1px; background: #1e293b; margin: 2px 0; }
+
+    .note { font-size: 10px; color: #475569; text-align: center; padding-bottom: 4px; }
+
+    /* ── DMS input ── */
+    .dms-wrap { position: relative; }
+    .dms-wrap input { width: 100%; padding-right: 60px; }
+    .dms-status {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      font-size: 10px; font-weight: 600; letter-spacing: .03em;
+      pointer-events: none;
+    }
+    .dms-status.ok  { color: #22c55e; }
+    .dms-status.err { color: #ef4444; }
+    .dms-status.idle { color: #475569; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">📍</div>
+  <div>
+    <div class="header-title">CoordCloak</div>
+    <div class="header-sub">Geolocation override for Firefox</div>
+  </div>
+</div>
+
+<div class="toggle-row">
+  <span class="toggle-label">Spoof Active</span>
+  <label class="toggle">
+    <input type="checkbox" id="toggleSpoof" />
+    <span class="slider"></span>
+  </label>
+</div>
+
+<div class="status">
+  <div class="dot inactive" id="statusDot"></div>
+  <span id="statusText">Spoofing disabled — using real location</span>
+</div>
+
+<div class="body">
+
+  <!-- DMS Input -->
+  <div>
+    <div class="field-label">DMS — paste to auto-convert</div>
+    <div class="dms-wrap">
+      <input type="text" id="dmsInput" placeholder="40°34'27.07"N 105°04'57.99"W" />
+      <span class="dms-status idle" id="dmsStatus">DMS</span>
+    </div>
+  </div>
+
+  <!-- Coordinates -->
+  <div>
+    <div class="field-label">Coordinates</div>
+    <div class="field-row">
+      <div class="field">
+        <input type="number" id="latInput" placeholder="Latitude" step="any" min="-90"  max="90"  />
+      </div>
+      <div class="field">
+        <input type="number" id="lngInput" placeholder="Longitude" step="any" min="-180" max="180" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Accuracy -->
+  <div>
+    <div class="field-label">Accuracy (meters)</div>
+    <input type="number" id="accInput" placeholder="Accuracy in metres (e.g. 10)" value="10" min="1" max="10000" />
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Presets -->
+  <div>
+    <div class="presets-label">Quick Presets</div>
+    <div class="preset-grid" id="presetGrid">
+      <button class="preset-btn" data-lat="40.7128"   data-lng="-74.0060"  ><span class="preset-flag">🇺🇸</span> New York</button>
+      <button class="preset-btn" data-lat="51.5074"   data-lng="-0.1278"   ><span class="preset-flag">🇬🇧</span> London</button>
+      <button class="preset-btn" data-lat="48.8566"   data-lng="2.3522"    ><span class="preset-flag">🇫🇷</span> Paris</button>
+      <button class="preset-btn" data-lat="35.6762"   data-lng="139.6503"  ><span class="preset-flag">🇯🇵</span> Tokyo</button>
+      <button class="preset-btn" data-lat="-33.8688"  data-lng="151.2093"  ><span class="preset-flag">🇦🇺</span> Sydney</button>
+      <button class="preset-btn" data-lat="55.7558"   data-lng="37.6176"   ><span class="preset-flag">🇷🇺</span> Moscow</button>
+      <button class="preset-btn" data-lat="-23.5505"  data-lng="-46.6333"  ><span class="preset-flag">🇧🇷</span> São Paulo</button>
+      <button class="preset-btn" data-lat="1.3521"    data-lng="103.8198"  ><span class="preset-flag">🇸🇬</span> Singapore</button>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Apply -->
+  <button class="apply-btn" id="applyBtn">Apply Fake Location</button>
+
+  <div class="toast" id="toast"></div>
+
+  <p class="note">⚠️ Reload the tab after applying to spoof on pages already loaded</p>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
