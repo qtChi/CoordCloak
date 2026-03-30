@@ -1,22 +1,24 @@
 {
   "manifest_version": 2,
   "name": "CoordCloak",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Spoof your browser geolocation with custom coordinates",
   "author": "CoordCloak",
 
   "icons": {
-    "48": "../icons/icon48.png",
-    "96": "../icons/icon96.png"
+    "48": "icons/icon48.png",
+    "96": "icons/icon96.png"
   },
 
   "browser_action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "48": "../icons/icon48.png"
+      "48": "icons/icon48.png"
     },
     "default_title": "CoordCloak"
   },
+
+  "content_security_policy": "script-src 'self'; connect-src https://nominatim.openstreetmap.org https://server.arcgisonline.com; img-src 'self' https://server.arcgisonline.com data: blob:; object-src 'self'",
 
   "permissions": [
     "storage",
@@ -41,7 +43,11 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "coordcloak@extension",
-      "strict_min_version": "63.0"
+      "strict_min_version": "63.0",
+      "data_collection_permissions": {
+        "required": [],
+        "optional": []
+      }
     }
   }
 }

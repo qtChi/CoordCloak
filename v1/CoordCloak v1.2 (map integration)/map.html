@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CoordCloak Map</title>
+  <link rel="stylesheet" href="leaflet.min.css" />
+  <script src="leaflet.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .map-header {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-bottom: 1px solid #1e293b;
+      padding: 10px 12px;
+      display: flex; align-items: center; gap: 8px;
+      flex-shrink: 0;
+    }
+    .map-header-icon {
+      width: 24px; height: 24px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; flex-shrink: 0;
+    }
+    .map-header-title { font-size: 13px; font-weight: 700; color: #f1f5f9; }
+    .map-header-sub   { font-size: 10px; color: #64748b; }
+
+    .search-wrap {
+      padding: 10px 12px;
+      background: #0f1117;
+      border-bottom: 1px solid #1e293b;
+      display: flex; gap: 6px;
+      flex-shrink: 0;
+    }
+    .search-input {
+      flex: 1;
+      background: #1e293b; border: 1px solid #334155;
+      color: #e2e8f0; border-radius: 7px;
+      padding: 7px 10px; font-size: 12px;
+      font-family: inherit;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .search-input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px #6366f120; }
+    .search-btn {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none; border-radius: 7px;
+      color: #fff; padding: 7px 12px;
+      font-size: 12px; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
+      transition: opacity .15s;
+    }
+    .search-btn:hover { opacity: .85; }
+
+    .coords-bar {
+      padding: 7px 12px;
+      background: #0a0d14;
+      border-bottom: 1px solid #1e293b;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .coords-text {
+      font-size: 11px; font-family: 'SF Mono', 'Fira Code', monospace;
+      color: #64748b;
+    }
+    .coords-text span { color: #a5b4fc; font-weight: 600; }
+    .use-btn {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none; color: #fff; border-radius: 6px;
+      padding: 4px 12px; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: opacity .15s;
+    }
+    .use-btn:hover { opacity: .85; }
+
+    #map { flex: 1; width: 100%; }
+
+    .toast {
+      position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+      background: #162032; border: 1px solid #22c55e44;
+      border-radius: 7px; padding: 6px 12px;
+      font-size: 11px; color: #4ade80;
+      display: none; white-space: nowrap;
+      z-index: 9999;
+    }
+    .toast.show { display: block; }
+    .toast.error { border-color: #ef444444; color: #f87171; background: #200f0f; }
+
+    .leaflet-container { background: #1e293b; }
+    .leaflet-control-zoom a {
+      background: #1e293b !important; color: #e2e8f0 !important;
+      border-color: #334155 !important;
+    }
+    .leaflet-control-zoom a:hover { background: #273549 !important; }
+    .leaflet-control-attribution {
+      background: #0f111788 !important; color: #475569 !important;
+      font-size: 9px !important;
+    }
+    .leaflet-control-attribution a { color: #64748b !important; }
+  </style>
+</head>
+<body>
+
+<div class="map-header">
+  <div class="map-header-icon">🗺️</div>
+  <div>
+    <div class="map-header-title">CoordCloak Map</div>
+    <div class="map-header-sub">Drag the pin or search a place</div>
+  </div>
+</div>
+
+<div class="search-wrap">
+  <input type="text" class="search-input" id="searchInput" placeholder="Search address or place name..." />
+  <button class="search-btn" id="searchBtn">Go</button>
+</div>
+
+<div class="coords-bar">
+  <div class="coords-text">Pin: <span id="coordDisplay">—</span></div>
+  <button class="use-btn" id="useBtn">Use in CoordCloak</button>
+</div>
+
+<div id="map"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+  let currentLat = 40.7128;
+  let currentLng = -74.0060;
+  let toastTimer;
+
+  // Fix Leaflet's icon paths when bundled locally
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+  iconUrl:       'icons/marker-icon.png',
+  shadowUrl:     'icons/marker-shadow.png',
+  iconRetinaUrl: 'icons/marker-icon.png',
+});
+
+  // Init map
+  const map = L.map('map', { zoomControl: true }).setView([currentLat, currentLng], 4);
+
+  // Satellite tiles from ESRI — free, no API key
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+    maxZoom: 19
+  }).addTo(map);
+
+  // Draggable marker
+  const marker = L.marker([currentLat, currentLng], { draggable: true }).addTo(map);
+  updateCoordDisplay(currentLat, currentLng);
+
+  // Load last known coords from storage and center map there
+  browser.storage.local.get(['lat', 'lng']).then(data => {
+    if (data.lat !== undefined && data.lng !== undefined) {
+      const lat = parseFloat(data.lat);
+      const lng = parseFloat(data.lng);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        currentLat = lat;
+        currentLng = lng;
+        marker.setLatLng([lat, lng]);
+        map.setView([lat, lng], 12);
+        updateCoordDisplay(lat, lng);
+      }
+    }
+  });
+
+  // Drag pin to update coords
+  marker.on('dragend', () => {
+    const pos = marker.getLatLng();
+    currentLat = pos.lat;
+    currentLng = pos.lng;
+    updateCoordDisplay(currentLat, currentLng);
+  });
+
+  // Click anywhere on map to move pin
+  map.on('click', e => {
+    currentLat = e.latlng.lat;
+    currentLng = e.latlng.lng;
+    marker.setLatLng([currentLat, currentLng]);
+    updateCoordDisplay(currentLat, currentLng);
+  });
+
+  // Search
+  document.getElementById('searchBtn').addEventListener('click', doSearch);
+  document.getElementById('searchInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doSearch();
+  });
+
+  async function doSearch() {
+    const query = document.getElementById('searchInput').value.trim();
+    if (!query) return;
+    const btn = document.getElementById('searchBtn');
+    btn.textContent = '...';
+    try {
+      const res = await fetch(
+        'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query),
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const results = await res.json();
+      if (!results.length) { showToast('No results found', true); return; }
+      const { lat, lon, display_name } = results[0];
+      currentLat = parseFloat(lat);
+      currentLng = parseFloat(lon);
+      marker.setLatLng([currentLat, currentLng]);
+      map.setView([currentLat, currentLng], 14);
+      updateCoordDisplay(currentLat, currentLng);
+      showToast('Found: ' + display_name.split(',').slice(0,2).join(','), false);
+    } catch(e) {
+      showToast('Search failed — check your connection', true);
+    } finally {
+      btn.textContent = 'Go';
+    }
+  }
+
+  // Send coords back to CoordCloak popup
+  document.getElementById('useBtn').addEventListener('click', () => {
+    browser.storage.local.set({
+      mapLat: currentLat,
+      mapLng: currentLng,
+      mapUpdate: Date.now()
+    });
+    showToast('Coordinates sent to CoordCloak ✓', false);
+  });
+
+  function updateCoordDisplay(lat, lng) {
+    document.getElementById('coordDisplay').textContent =
+      lat.toFixed(6) + ', ' + lng.toFixed(6);
+  }
+
+  function showToast(msg, isError) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.className = 'toast'; }, 3000);
+  }
+</script>
+</body>
+</html>
