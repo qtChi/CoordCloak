@@ -14,6 +14,9 @@ const dmsStatus    = document.getElementById('dmsStatus');
 const savedList    = document.getElementById('savedList');
 const savedCount   = document.getElementById('savedCount');
 const presets      = Array.from(document.querySelectorAll('.preset-btn'));
+const mapPanel     = document.getElementById('mapPanel');
+const mapIframe    = document.getElementById('mapIframe');
+const openMapBtn   = document.getElementById('openMapBtn');
 
 const PROFILE_COLORS = [
   '#6366f1','#8b5cf6','#ec4899','#ef4444',
@@ -69,7 +72,7 @@ applyBtn.addEventListener('click', () => {
   saveProfile(lat, lng, acc);
 });
 
-// ── Apply once (no save) ──────────────────────────────────────────────────────
+// ── Apply once ────────────────────────────────────────────────────────────────
 applyOnceBtn.addEventListener('click', () => {
   const lat = parseFloat(latInput.value);
   const lng = parseFloat(lngInput.value);
@@ -95,40 +98,80 @@ presets.forEach(btn => {
     if (!toggleEl.checked) { toggleEl.checked = true; browser.storage.local.set({ spoofEnabled: true }); }
     updateUI(true);
     broadcastAndSave(lat, lng, acc);
+    // If map is open, tell it to move the pin
+    if (mapPanel.classList.contains('open')) {
+      mapIframe.contentWindow.postMessage({ type: 'MOVE_PIN', lat, lng }, '*');
+    }
   });
 });
 
-// ── Map picker ────────────────────────────────────────────────────────────────
-document.getElementById('openMapBtn').addEventListener('click', () => {
-  const mapWidth  = 420;
-  const mapHeight = window.outerHeight;
-  const left      = Math.max(0, window.screenX - mapWidth - 8);
-  const top       = window.screenY;
+// ── Map panel toggle ──────────────────────────────────────────────────────────
+openMapBtn.addEventListener('click', () => {
+  const isOpen = mapPanel.classList.contains('open');
+  if (isOpen) {
+    closeMap();
+  } else {
+    openMap();
+  }
+});
 
+document.getElementById('closeMapBtn').addEventListener('click', closeMap);
+
+document.getElementById('expandMapBtn').addEventListener('click', () => {
   browser.windows.create({
     url:    browser.runtime.getURL('map.html'),
     type:   'popup',
-    width:  mapWidth,
-    height: mapHeight,
-    left,
-    top
+    width:  800,
+    height: 600
   });
 });
 
-// Listen for coordinate updates pushed from map window
-browser.storage.onChanged.addListener((changes, area) => {
-  if (area !== 'local' || !changes.mapUpdate) return;
-  browser.storage.local.get(['mapLat', 'mapLng']).then(data => {
-    if (data.mapLat !== undefined && data.mapLng !== undefined) {
-      latInput.value = parseFloat(data.mapLat).toFixed(6);
-      lngInput.value = parseFloat(data.mapLng).toFixed(6);
-      dmsInput.value = '';
-      dmsStatus.textContent = 'DMS';
-      dmsStatus.className = 'dms-status idle';
-      updateStatus(toggleEl.checked, parseFloat(data.mapLat), parseFloat(data.mapLng));
-      showToast('Coordinates updated from map', false);
+function openMap() {
+  mapPanel.classList.add('open');
+  document.body.classList.add('map-open');
+  openMapBtn.classList.add('active');
+  openMapBtn.textContent = '🗺️ Map';
+
+  // Always reload iframe (prevents rendering artifacts)
+  mapIframe.src = 'map.html';
+
+  mapIframe.onload = () => {
+    const lat = parseFloat(latInput.value);
+    const lng = parseFloat(lngInput.value);
+
+    if (!isNaN(lat) && !isNaN(lng)) {
+      mapIframe.contentWindow.postMessage(
+        { type: 'MOVE_PIN', lat, lng },
+        '*'
+      );
     }
-  });
+  };
+}
+
+function closeMap() {
+  // Destroy iframe FIRST (critical for fixing black box)
+  mapIframe.src = 'about:blank';
+
+  // Then collapse layout
+  mapPanel.classList.remove('open');
+  document.body.classList.remove('map-open');
+  openMapBtn.classList.remove('active');
+}
+
+// ── Receive coords from map iframe ────────────────────────────────────────────
+window.addEventListener('message', e => {
+  if (e.data && e.data.type === 'COORD_UPDATE') {
+    const lat = parseFloat(e.data.lat);
+    const lng = parseFloat(e.data.lng);
+    if (isNaN(lat) || isNaN(lng)) return;
+    latInput.value = lat.toFixed(6);
+    lngInput.value = lng.toFixed(6);
+    dmsInput.value = '';
+    dmsStatus.textContent = 'DMS';
+    dmsStatus.className = 'dms-status idle';
+    updateStatus(toggleEl.checked, lat, lng);
+    showToast('Coordinates updated from map', false);
+  }
 });
 
 // ── DMS converter ─────────────────────────────────────────────────────────────
@@ -274,6 +317,9 @@ function buildCard(profile) {
     if (!toggleEl.checked) { toggleEl.checked = true; browser.storage.local.set({ spoofEnabled: true }); }
     updateUI(true);
     broadcastAndSave(profile.lat, profile.lng, profile.acc || 10);
+    if (mapPanel.classList.contains('open')) {
+      mapIframe.contentWindow.postMessage({ type: 'MOVE_PIN', lat: profile.lat, lng: profile.lng }, '*');
+    }
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     document.querySelector('[data-tab="spoof"]').classList.add('active');

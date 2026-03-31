@@ -7,11 +7,67 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      width: 310px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: #0f1117;
       color: #e2e8f0;
       user-select: none;
+      display: flex;
+      flex-direction: row;
+      width: 310px;
+      transition: width .25s ease;
+      overflow: hidden;
+    }
+    body.map-open { width: 720px; }
+
+    /* ── Main panel ── */
+    .main-panel {
+      width: 310px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #1e293b;
+    }
+
+    /* ── Map panel ── */
+    .map-panel {
+      width: 0;
+      flex: 0;
+      display: none;
+      flex-direction: column;
+      background: #0f1117;
+      position: relative;
+    }
+    .map-panel.open {
+      display: flex;
+      width: auto;
+      flex: 1;
+    }
+    .map-panel-header {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-bottom: 1px solid #1e293b;
+      padding: 8px 10px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .map-panel-title {
+      font-size: 11px; font-weight: 700; color: #a5b4fc;
+      text-transform: uppercase; letter-spacing: .05em;
+    }
+    .map-panel-actions { display: flex; gap: 5px; }
+    .map-icon-btn {
+      background: #0f1117; border: 1px solid #334155;
+      color: #64748b; border-radius: 5px;
+      width: 22px; height: 22px; font-size: 11px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all .15s;
+    }
+    .map-icon-btn:hover { border-color: #6366f1; color: #a5b4fc; }
+
+    .map-iframe {
+      flex: 1;
+      border: none;
+      width: 100%;
+      height: 100%;
     }
 
     .header {
@@ -90,6 +146,7 @@
       transition: all .15s; line-height: 1.6;
     }
     .map-btn:hover { border-color: #6366f1; color: #a5b4fc; background: #1e2d40; }
+    .map-btn.active { border-color: #6366f1; color: #a5b4fc; background: #1e2d40; }
 
     .field-row { display: flex; gap: 8px; }
     .field { flex: 1; display: flex; flex-direction: column; }
@@ -222,95 +279,112 @@
 </head>
 <body>
 
-<div class="header">
-  <div class="header-icon">📍</div>
-  <div>
-    <div class="header-title">CoordCloak</div>
-    <div class="header-sub">Geolocation override for Firefox</div>
-  </div>
-</div>
+<!-- ── Main Panel ── -->
+<div class="main-panel">
 
-<div class="toggle-row">
-  <span class="toggle-label">Spoof Active</span>
-  <label class="toggle">
-    <input type="checkbox" id="toggleSpoof" />
-    <span class="slider"></span>
-  </label>
-</div>
-
-<div class="status">
-  <div class="dot inactive" id="statusDot"></div>
-  <span id="statusText">Spoofing disabled — using real location</span>
-</div>
-
-<div class="tabs">
-  <div class="tab active" data-tab="spoof">🌍 Spoof</div>
-  <div class="tab" data-tab="saved">📌 Saved <span id="savedCount"></span></div>
-</div>
-
-<!-- SPOOF PANEL -->
-<div class="panel active" id="panel-spoof">
-  <div class="body">
-
+  <div class="header">
+    <div class="header-icon">📍</div>
     <div>
-      <div class="field-label" style="margin-bottom:4px;">DMS — paste to auto-convert</div>
-      <div class="dms-wrap">
-        <input type="text" id="dmsInput" placeholder='40°34&apos;27.07"N 105°04&apos;57.99"W' />
-        <span class="dms-status idle" id="dmsStatus">DMS</span>
-      </div>
+      <div class="header-title">CoordCloak</div>
+      <div class="header-sub">Geolocation override for Firefox</div>
     </div>
+  </div>
 
-    <div>
-      <div class="coord-label-row">
-        <div class="field-label">Coordinates</div>
-        <button class="map-btn" id="openMapBtn">🌍 Map</button>
-      </div>
-      <div class="field-row">
-        <div class="field">
-          <input type="number" id="latInput" placeholder="Latitude" step="any" min="-90" max="90" />
-        </div>
-        <div class="field">
-          <input type="number" id="lngInput" placeholder="Longitude" step="any" min="-180" max="180" />
+  <div class="toggle-row">
+    <span class="toggle-label">Spoof Active</span>
+    <label class="toggle">
+      <input type="checkbox" id="toggleSpoof" />
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="status">
+    <div class="dot inactive" id="statusDot"></div>
+    <span id="statusText">Spoofing disabled — using real location</span>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="spoof">🌍 Spoof</div>
+    <div class="tab" data-tab="saved">📌 Saved <span id="savedCount"></span></div>
+  </div>
+
+  <!-- SPOOF PANEL -->
+  <div class="panel active" id="panel-spoof">
+    <div class="body">
+
+      <div>
+        <div class="field-label" style="margin-bottom:4px;">DMS — paste to auto-convert</div>
+        <div class="dms-wrap">
+          <input type="text" id="dmsInput" placeholder='40°34&apos;27.07"N 105°04&apos;57.99"W' />
+          <span class="dms-status idle" id="dmsStatus">DMS</span>
         </div>
       </div>
-    </div>
 
-    <div>
-      <div class="field-label" style="margin-bottom:4px;">Accuracy (meters)</div>
-      <input type="number" id="accInput" value="10" min="1" max="10000" />
-    </div>
-
-    <div class="divider"></div>
-
-    <div>
-      <div class="field-label" style="margin-bottom:6px;">Quick Presets</div>
-      <div class="preset-grid">
-        <button class="preset-btn" data-lat="40.7128"  data-lng="-74.0060">🇺🇸 New York</button>
-        <button class="preset-btn" data-lat="51.5074"  data-lng="-0.1278">🇬🇧 London</button>
-        <button class="preset-btn" data-lat="48.8566"  data-lng="2.3522">🇫🇷 Paris</button>
-        <button class="preset-btn" data-lat="35.6762"  data-lng="139.6503">🇯🇵 Tokyo</button>
-        <button class="preset-btn" data-lat="-33.8688" data-lng="151.2093">🇦🇺 Sydney</button>
-        <button class="preset-btn" data-lat="55.7558"  data-lng="37.6176">🇷🇺 Moscow</button>
-        <button class="preset-btn" data-lat="-23.5505" data-lng="-46.6333">🇧🇷 São Paulo</button>
-        <button class="preset-btn" data-lat="1.3521"   data-lng="103.8198">🇸🇬 Singapore</button>
+      <div>
+        <div class="coord-label-row">
+          <div class="field-label">Coordinates</div>
+          <button class="map-btn" id="openMapBtn">🌍 Map</button>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <input type="number" id="latInput" placeholder="Latitude" step="any" min="-90" max="90" />
+          </div>
+          <div class="field">
+            <input type="number" id="lngInput" placeholder="Longitude" step="any" min="-180" max="180" />
+          </div>
+        </div>
       </div>
+
+      <div>
+        <div class="field-label" style="margin-bottom:4px;">Accuracy (meters)</div>
+        <input type="number" id="accInput" value="10" min="1" max="10000" />
+      </div>
+
+      <div class="divider"></div>
+
+      <div>
+        <div class="field-label" style="margin-bottom:6px;">Quick Presets</div>
+        <div class="preset-grid">
+          <button class="preset-btn" data-lat="40.7128"  data-lng="-74.0060">🇺🇸 New York</button>
+          <button class="preset-btn" data-lat="51.5074"  data-lng="-0.1278">🇬🇧 London</button>
+          <button class="preset-btn" data-lat="48.8566"  data-lng="2.3522">🇫🇷 Paris</button>
+          <button class="preset-btn" data-lat="35.6762"  data-lng="139.6503">🇯🇵 Tokyo</button>
+          <button class="preset-btn" data-lat="-33.8688" data-lng="151.2093">🇦🇺 Sydney</button>
+          <button class="preset-btn" data-lat="55.7558"  data-lng="37.6176">🇷🇺 Moscow</button>
+          <button class="preset-btn" data-lat="-23.5505" data-lng="-46.6333">🇧🇷 São Paulo</button>
+          <button class="preset-btn" data-lat="1.3521"   data-lng="103.8198">🇸🇬 Singapore</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="action-row">
+        <button class="apply-btn primary" id="applyBtn">💾 Save & Apply</button>
+        <button class="apply-btn secondary" id="applyOnceBtn" title="Apply once without saving">▶</button>
+      </div>
+      <div class="toast" id="toast"></div>
+      <p class="note">⚠️ Reload the tab after applying to take effect</p>
+
     </div>
-
-    <div class="divider"></div>
-
-    <div class="action-row">
-      <button class="apply-btn primary" id="applyBtn">💾 Save & Apply</button>
-      <button class="apply-btn secondary" id="applyOnceBtn" title="Apply once without saving">▶</button>
-    </div>
-    <div class="toast" id="toast"></div>
-    <p class="note">⚠️ Reload the tab after applying to take effect</p>
-
   </div>
+
+  <!-- SAVED PANEL -->
+  <div class="panel" id="panel-saved">
+    <div class="saved-panel" id="savedList"></div>
+  </div>
+
 </div>
 
-<!-- SAVED PANEL -->
-<div class="panel" id="panel-saved">
-  <div class="saved-panel" id="savedList"></div>
+<!-- ── Map Panel ── -->
+<div class="map-panel" id="mapPanel">
+  <div class="map-panel-header">
+    <div class="map-panel-title">🗺️ Map Picker</div>
+    <div class="map-panel-actions">
+      <button class="map-icon-btn" id="expandMapBtn" title="Open in full window">⛶</button>
+      <button class="map-icon-btn" id="closeMapBtn" title="Close map">✕</button>
+    </div>
+  </div>
+  <iframe class="map-iframe" id="mapIframe" src="map.html"></iframe>
 </div>
 
 <script src="popup.js"></script>
