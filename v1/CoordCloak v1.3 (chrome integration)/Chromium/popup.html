@@ -6,39 +6,52 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    html {
+      width: 310px;
+      overflow: hidden;
+      background: #0f1117;
+    }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0f1117;
       color: #e2e8f0;
       user-select: none;
       display: flex;
       flex-direction: row;
       width: 310px;
+      height: 650px;
       overflow: hidden;
+      background: #0f1117;
     }
-    body.map-open { width: 720px; }
 
     .main-panel {
       width: 310px;
+      min-width: 310px;
+      max-width: 310px;
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
       border-right: 1px solid #1e293b;
+      height: 650px;
+    }
+
+    body.map-open {
+      width: 720px;
+    }
+    body.map-open .main-panel {
+      height: 720px;
     }
 
     .map-panel {
-      width: 0;
-      flex: 0;
       display: none;
       flex-direction: column;
       background: #0f1117;
       position: relative;
-    }
-    .map-panel.open {
-      display: flex;
-      width: auto;
+      height: 650px;
       flex: 1;
     }
+    .map-panel.open { display: flex; }
+
     .map-panel-header {
       background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
       border-bottom: 1px solid #1e293b;
@@ -72,6 +85,7 @@
       border-bottom: 1px solid #1e293b;
       padding: 12px 16px;
       display: flex; align-items: center; gap: 10px;
+      flex-shrink: 0;
     }
     .header-icon {
       width: 28px; height: 28px;
@@ -86,6 +100,7 @@
     .toggle-row {
       display: flex; align-items: center; justify-content: space-between;
       padding: 10px 16px; border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
     }
     .toggle-label { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; }
     .toggle { position: relative; width: 40px; height: 22px; }
@@ -106,12 +121,16 @@
       display: flex; align-items: center; gap: 6px;
       padding: 7px 16px; font-size: 11px; color: #64748b;
       border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
     }
     .dot { width: 7px; height: 7px; border-radius: 50%; background: #334155; transition: background .3s; }
     .dot.active   { background: #22c55e; box-shadow: 0 0 6px #22c55e88; }
     .dot.inactive { background: #ef4444; }
 
-    .tabs { display: flex; border-bottom: 1px solid #1e293b; }
+    .tabs {
+      display: flex; border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
+    }
     .tab {
       flex: 1; padding: 9px; font-size: 11px; font-weight: 600;
       text-align: center; cursor: pointer; color: #475569;
@@ -121,10 +140,29 @@
     }
     .tab.active { color: #a5b4fc; border-bottom-color: #6366f1; }
 
-    .panel { display: none; }
-    .panel.active { display: block; }
+    .panel {
+      display: none;
+      flex: 1;
+      min-height: 0;
+      flex-direction: column;
+      width: 310px;
+      max-width: 310px;
+    }
+    .panel.active { display: flex; }
 
-    .body { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+    .body {
+      padding: 12px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      width: 100%;
+      scrollbar-width: thin;
+      scrollbar-color: #334155 transparent;
+    }
 
     .field-label {
       font-size: 10px; font-weight: 600; color: #64748b;
@@ -209,7 +247,19 @@
     .divider { height: 1px; background: #1e293b; margin: 2px 0; }
     .note { font-size: 10px; color: #475569; text-align: center; padding-bottom: 2px; }
 
-    .saved-panel { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-height: 80px; }
+    .saved-panel {
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      width: 100%;
+      scrollbar-width: thin;
+      scrollbar-color: #334155 transparent;
+    }
 
     .empty-state {
       text-align: center; color: #334155;
@@ -282,7 +332,7 @@
     <div class="header-icon">📍</div>
     <div>
       <div class="header-title">CoordCloak</div>
-      <div class="header-sub">Geolocation override for Chrome</div>
+      <div class="header-sub">Geolocation override for Firefox</div>
     </div>
   </div>
 
@@ -377,7 +427,7 @@
       <button class="map-icon-btn" id="closeMapBtn" title="Close map">✕</button>
     </div>
   </div>
-  <iframe class="map-iframe" id="mapIframe" src="map.html"></iframe>
+  <iframe class="map-iframe" id="mapIframe" src=""></iframe>
 </div>
 
 <script src="browser-polyfill.min.js"></script>

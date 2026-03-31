@@ -59,7 +59,10 @@ const searchInput   = document.getElementById('searchInput');
 const searchBtn     = document.getElementById('searchBtn');
 const suggestionsEl = document.getElementById('suggestions');
 
-searchBtn.addEventListener('click', () => doSearch(searchInput.value.trim()));
+searchBtn.addEventListener('click', () => {
+  closeSuggestions();
+  doSearch(searchInput.value.trim());
+});
 
 searchInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') {
@@ -69,7 +72,6 @@ searchInput.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeSuggestions();
 });
 
-// Debounced autocomplete as user types
 searchInput.addEventListener('input', () => {
   const query = searchInput.value.trim();
   clearTimeout(debounceTimer);
@@ -77,7 +79,6 @@ searchInput.addEventListener('input', () => {
   debounceTimer = setTimeout(() => fetchSuggestions(query), 350);
 });
 
-// Close suggestions when clicking outside
 document.addEventListener('click', e => {
   if (!e.target.closest('.search-wrap')) closeSuggestions();
 });
@@ -102,8 +103,7 @@ function renderSuggestions(results) {
     const item = document.createElement('div');
     item.className = 'suggestion-item';
 
-    // Split display name into primary (first part) and detail (rest)
-    const parts = r.display_name.split(',');
+    const parts   = r.display_name.split(',');
     const primary = parts[0].trim();
     const detail  = parts.slice(1, 3).join(',').trim();
 
@@ -122,8 +122,14 @@ function renderSuggestions(results) {
       updateCoordDisplay(lat, lng);
       searchInput.value = r.display_name.split(',').slice(0, 2).join(',').trim();
       closeSuggestions();
-      // Auto-send to CoordCloak popup
-      window.parent.postMessage({ type: 'COORD_UPDATE', lat, lng }, '*');
+
+      // Send to popup — storage if standalone, postMessage if iframe
+      const isStandalone = window.parent === window;
+      if (isStandalone) {
+        browser.storage.local.set({ mapLat: lat, mapLng: lng, mapUpdate: Date.now() });
+      } else {
+        window.parent.postMessage({ type: 'COORD_UPDATE', lat, lng }, '*');
+      }
       showToast('Sent to CoordCloak ✓', false);
     });
 
@@ -163,7 +169,16 @@ async function doSearch(query) {
 
 // ── Send coords to popup ──────────────────────────────────────────────────────
 document.getElementById('useBtn').addEventListener('click', () => {
-  window.parent.postMessage({ type: 'COORD_UPDATE', lat: currentLat, lng: currentLng }, '*');
+  const isStandalone = window.parent === window;
+  if (isStandalone) {
+    browser.storage.local.set({
+      mapLat: currentLat,
+      mapLng: currentLng,
+      mapUpdate: Date.now()
+    });
+  } else {
+    window.parent.postMessage({ type: 'COORD_UPDATE', lat: currentLat, lng: currentLng }, '*');
+  }
   showToast('Sent to CoordCloak ✓', false);
 });
 

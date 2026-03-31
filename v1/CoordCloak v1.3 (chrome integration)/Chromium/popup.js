@@ -98,7 +98,6 @@ presets.forEach(btn => {
     if (!toggleEl.checked) { toggleEl.checked = true; browser.storage.local.set({ spoofEnabled: true }); }
     updateUI(true);
     broadcastAndSave(lat, lng, acc);
-    // If map is open, tell it to move the pin
     if (mapPanel.classList.contains('open')) {
       mapIframe.contentWindow.postMessage({ type: 'MOVE_PIN', lat, lng }, '*');
     }
@@ -130,8 +129,8 @@ function openMap() {
   mapPanel.classList.add('open');
   document.body.classList.add('map-open');
   document.body.style.width = '720px';
+  document.documentElement.style.width = '720px';
   openMapBtn.classList.add('active');
-
   mapIframe.src = 'map.html';
   mapIframe.onload = () => {
     const lat = parseFloat(latInput.value);
@@ -147,10 +146,11 @@ function closeMap() {
   mapPanel.classList.remove('open');
   document.body.classList.remove('map-open');
   document.body.style.width = '310px';
+  document.documentElement.style.width = '310px';
   openMapBtn.classList.remove('active');
 }
 
-// ── Receive coords from map iframe ────────────────────────────────────────────
+// ── Receive coords from iframe map ────────────────────────────────────────────
 window.addEventListener('message', e => {
   if (e.data && e.data.type === 'COORD_UPDATE') {
     const lat = parseFloat(e.data.lat);
@@ -164,6 +164,22 @@ window.addEventListener('message', e => {
     updateStatus(toggleEl.checked, lat, lng);
     showToast('Coordinates updated from map', false);
   }
+});
+
+// ── Receive coords from fullscreen map via storage ────────────────────────────
+browser.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local' || !changes.mapUpdate) return;
+  browser.storage.local.get(['mapLat', 'mapLng']).then(data => {
+    if (data.mapLat !== undefined && data.mapLng !== undefined) {
+      latInput.value = parseFloat(data.mapLat).toFixed(6);
+      lngInput.value = parseFloat(data.mapLng).toFixed(6);
+      dmsInput.value = '';
+      dmsStatus.textContent = 'DMS';
+      dmsStatus.className = 'dms-status idle';
+      updateStatus(toggleEl.checked, parseFloat(data.mapLat), parseFloat(data.mapLng));
+      showToast('Coordinates updated from map', false);
+    }
+  });
 });
 
 // ── DMS converter ─────────────────────────────────────────────────────────────
