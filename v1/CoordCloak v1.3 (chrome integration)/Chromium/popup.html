@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CoordCloak</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      user-select: none;
+      display: flex;
+      flex-direction: row;
+      width: 310px;
+      overflow: hidden;
+    }
+    body.map-open { width: 720px; }
+
+    .main-panel {
+      width: 310px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #1e293b;
+    }
+
+    .map-panel {
+      width: 0;
+      flex: 0;
+      display: none;
+      flex-direction: column;
+      background: #0f1117;
+      position: relative;
+    }
+    .map-panel.open {
+      display: flex;
+      width: auto;
+      flex: 1;
+    }
+    .map-panel-header {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-bottom: 1px solid #1e293b;
+      padding: 8px 10px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .map-panel-title {
+      font-size: 11px; font-weight: 700; color: #a5b4fc;
+      text-transform: uppercase; letter-spacing: .05em;
+    }
+    .map-panel-actions { display: flex; gap: 5px; }
+    .map-icon-btn {
+      background: #0f1117; border: 1px solid #334155;
+      color: #64748b; border-radius: 5px;
+      width: 22px; height: 22px; font-size: 11px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all .15s;
+    }
+    .map-icon-btn:hover { border-color: #6366f1; color: #a5b4fc; }
+
+    .map-iframe {
+      flex: 1;
+      border: none;
+      width: 100%;
+      height: 100%;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-bottom: 1px solid #1e293b;
+      padding: 12px 16px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .header-icon {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .header-title { font-size: 15px; font-weight: 700; color: #f1f5f9; }
+    .header-sub   { font-size: 10px; color: #64748b; margin-top: 1px; }
+
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; border-bottom: 1px solid #1e293b;
+    }
+    .toggle-label { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; }
+    .toggle { position: relative; width: 40px; height: 22px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; inset: 0; border-radius: 22px;
+      background: #334155; cursor: pointer; transition: background .2s;
+    }
+    .slider::before {
+      content: ''; position: absolute;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: #fff; left: 3px; top: 3px; transition: transform .2s;
+    }
+    input:checked + .slider { background: #6366f1; }
+    input:checked + .slider::before { transform: translateX(18px); }
+
+    .status {
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 16px; font-size: 11px; color: #64748b;
+      border-bottom: 1px solid #1e293b;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #334155; transition: background .3s; }
+    .dot.active   { background: #22c55e; box-shadow: 0 0 6px #22c55e88; }
+    .dot.inactive { background: #ef4444; }
+
+    .tabs { display: flex; border-bottom: 1px solid #1e293b; }
+    .tab {
+      flex: 1; padding: 9px; font-size: 11px; font-weight: 600;
+      text-align: center; cursor: pointer; color: #475569;
+      border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+      text-transform: uppercase; letter-spacing: .05em;
+    }
+    .tab.active { color: #a5b4fc; border-bottom-color: #6366f1; }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .body { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+    .field-label {
+      font-size: 10px; font-weight: 600; color: #64748b;
+      text-transform: uppercase; letter-spacing: .06em;
+    }
+
+    .coord-label-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .map-btn {
+      background: #1e293b; border: 1px solid #334155;
+      color: #64748b; border-radius: 6px;
+      padding: 2px 8px; font-size: 11px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 4px;
+      transition: all .15s; line-height: 1.6;
+    }
+    .map-btn:hover { border-color: #6366f1; color: #a5b4fc; background: #1e2d40; }
+    .map-btn.active { border-color: #6366f1; color: #a5b4fc; background: #1e2d40; }
+
+    .field-row { display: flex; gap: 8px; }
+    .field { flex: 1; display: flex; flex-direction: column; }
+
+    input[type="number"], input[type="text"] {
+      background: #1e293b; border: 1px solid #334155;
+      color: #e2e8f0; border-radius: 8px;
+      padding: 8px 10px; font-size: 12px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      width: 100%; transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px #6366f120; }
+    input[disabled] { opacity: .4; cursor: not-allowed; }
+
+    .dms-wrap { position: relative; }
+    .dms-wrap input { padding-right: 44px; }
+    .dms-status {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      font-size: 10px; font-weight: 600; pointer-events: none;
+    }
+    .dms-status.ok   { color: #22c55e; }
+    .dms-status.err  { color: #ef4444; }
+    .dms-status.idle { color: #475569; }
+
+    .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .preset-btn {
+      background: #1e293b; border: 1px solid #334155;
+      color: #94a3b8; border-radius: 7px;
+      padding: 6px 8px; font-size: 11px;
+      cursor: pointer; text-align: left;
+      transition: all .15s; display: flex; align-items: center; gap: 5px;
+    }
+    .preset-btn:hover { background: #273549; border-color: #6366f1; color: #c7d2fe; }
+
+    .action-row {
+      display: flex; border-radius: 9px; overflow: hidden;
+      border: 1px solid #4f46e5;
+    }
+    .apply-btn {
+      padding: 10px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff; border: none; border-radius: 0; margin: 0;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: opacity .15s;
+    }
+    .apply-btn:hover { opacity: .9; }
+    .action-row .primary { flex: 7; }
+    .action-row .secondary {
+      flex: 3; background: #4338ca;
+      font-size: 14px; border-left: 1px solid #4f46e5;
+    }
+    .action-row .secondary:hover { background: #3730a3; opacity: 1; }
+
+    .toast {
+      display: none; align-items: center; gap: 6px;
+      background: #162032; border: 1px solid #22c55e44;
+      border-radius: 7px; padding: 7px 10px;
+      font-size: 11px; color: #4ade80;
+    }
+    .toast.show { display: flex; }
+    .toast.error { border-color: #ef444444; color: #f87171; background: #200f0f; }
+
+    .divider { height: 1px; background: #1e293b; margin: 2px 0; }
+    .note { font-size: 10px; color: #475569; text-align: center; padding-bottom: 2px; }
+
+    .saved-panel { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-height: 80px; }
+
+    .empty-state {
+      text-align: center; color: #334155;
+      padding: 24px 0; font-size: 12px; line-height: 1.6;
+    }
+    .empty-state .empty-icon { font-size: 28px; margin-bottom: 6px; }
+
+    .profile-card {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 9px; padding: 9px 10px;
+      display: flex; align-items: center; gap: 8px;
+      transition: border-color .15s;
+    }
+    .profile-card:hover { border-color: #475569; }
+
+    .profile-color {
+      width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+      cursor: pointer; border: 2px solid rgba(255,255,255,0.15);
+      transition: transform .15s;
+    }
+    .profile-color:hover { transform: scale(1.3); }
+
+    .profile-info { flex: 1; min-width: 0; }
+    .profile-name {
+      font-size: 12px; font-weight: 600; color: #e2e8f0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      cursor: pointer;
+    }
+    .profile-name:hover { color: #a5b4fc; }
+    .profile-name-input {
+      background: #0f1117; border: 1px solid #6366f1;
+      color: #e2e8f0; border-radius: 5px;
+      padding: 2px 6px; font-size: 12px; font-weight: 600; width: 100%;
+    }
+    .profile-coords { font-size: 10px; color: #475569; margin-top: 1px; font-family: monospace; }
+
+    .profile-actions { display: flex; gap: 4px; flex-shrink: 0; }
+    .icon-btn {
+      background: #0f1117; border: 1px solid #1e293b;
+      color: #64748b; border-radius: 6px;
+      width: 26px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 13px; transition: all .15s;
+    }
+    .icon-btn:hover { border-color: #6366f1; color: #a5b4fc; background: #1e293b; }
+    .icon-btn.danger:hover { border-color: #ef4444; color: #f87171; }
+
+    .color-picker-wrap { position: relative; }
+    .color-popover {
+      position: absolute; left: 0; top: 20px; z-index: 99;
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 9px; padding: 8px;
+      display: none; flex-wrap: wrap; gap: 5px; width: 112px;
+      box-shadow: 0 8px 24px #00000088;
+    }
+    .color-popover.open { display: flex; }
+    .color-swatch {
+      width: 20px; height: 20px; border-radius: 50%;
+      cursor: pointer; border: 2px solid transparent;
+      transition: transform .1s, border-color .1s;
+    }
+    .color-swatch:hover { transform: scale(1.2); border-color: #fff5; }
+  </style>
+</head>
+<body>
+
+<div class="main-panel">
+
+  <div class="header">
+    <div class="header-icon">📍</div>
+    <div>
+      <div class="header-title">CoordCloak</div>
+      <div class="header-sub">Geolocation override for Chrome</div>
+    </div>
+  </div>
+
+  <div class="toggle-row">
+    <span class="toggle-label">Spoof Active</span>
+    <label class="toggle">
+      <input type="checkbox" id="toggleSpoof" />
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="status">
+    <div class="dot inactive" id="statusDot"></div>
+    <span id="statusText">Spoofing disabled — using real location</span>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="spoof">🌍 Spoof</div>
+    <div class="tab" data-tab="saved">📌 Saved <span id="savedCount"></span></div>
+  </div>
+
+  <div class="panel active" id="panel-spoof">
+    <div class="body">
+
+      <div>
+        <div class="field-label" style="margin-bottom:4px;">DMS — paste to auto-convert</div>
+        <div class="dms-wrap">
+          <input type="text" id="dmsInput" placeholder='40°34&apos;27.07"N 105°04&apos;57.99"W' />
+          <span class="dms-status idle" id="dmsStatus">DMS</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="coord-label-row">
+          <div class="field-label">Coordinates</div>
+          <button class="map-btn" id="openMapBtn">🌍 Map</button>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <input type="number" id="latInput" placeholder="Latitude" step="any" min="-90" max="90" />
+          </div>
+          <div class="field">
+            <input type="number" id="lngInput" placeholder="Longitude" step="any" min="-180" max="180" />
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="field-label" style="margin-bottom:4px;">Accuracy (meters)</div>
+        <input type="number" id="accInput" value="10" min="1" max="10000" />
+      </div>
+
+      <div class="divider"></div>
+
+      <div>
+        <div class="field-label" style="margin-bottom:6px;">Quick Presets</div>
+        <div class="preset-grid">
+          <button class="preset-btn" data-lat="40.7128"  data-lng="-74.0060">🇺🇸 New York</button>
+          <button class="preset-btn" data-lat="51.5074"  data-lng="-0.1278">🇬🇧 London</button>
+          <button class="preset-btn" data-lat="48.8566"  data-lng="2.3522">🇫🇷 Paris</button>
+          <button class="preset-btn" data-lat="35.6762"  data-lng="139.6503">🇯🇵 Tokyo</button>
+          <button class="preset-btn" data-lat="-33.8688" data-lng="151.2093">🇦🇺 Sydney</button>
+          <button class="preset-btn" data-lat="55.7558"  data-lng="37.6176">🇷🇺 Moscow</button>
+          <button class="preset-btn" data-lat="-23.5505" data-lng="-46.6333">🇧🇷 São Paulo</button>
+          <button class="preset-btn" data-lat="1.3521"   data-lng="103.8198">🇸🇬 Singapore</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="action-row">
+        <button class="apply-btn primary" id="applyBtn">💾 Save & Apply</button>
+        <button class="apply-btn secondary" id="applyOnceBtn" title="Apply once without saving">▶</button>
+      </div>
+      <div class="toast" id="toast"></div>
+      <p class="note">⚠️ Reload the tab after applying to take effect</p>
+
+    </div>
+  </div>
+
+  <div class="panel" id="panel-saved">
+    <div class="saved-panel" id="savedList"></div>
+  </div>
+
+</div>
+
+<div class="map-panel" id="mapPanel">
+  <div class="map-panel-header">
+    <div class="map-panel-title">🗺️ Map Picker</div>
+    <div class="map-panel-actions">
+      <button class="map-icon-btn" id="expandMapBtn" title="Open in full window">⛶</button>
+      <button class="map-icon-btn" id="closeMapBtn" title="Close map">✕</button>
+    </div>
+  </div>
+  <iframe class="map-iframe" id="mapIframe" src="map.html"></iframe>
+</div>
+
+<script src="browser-polyfill.min.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>
