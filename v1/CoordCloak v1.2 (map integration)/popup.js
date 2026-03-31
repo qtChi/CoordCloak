@@ -129,32 +129,24 @@ document.getElementById('expandMapBtn').addEventListener('click', () => {
 function openMap() {
   mapPanel.classList.add('open');
   document.body.classList.add('map-open');
+  document.body.style.width = '720px';
   openMapBtn.classList.add('active');
-  openMapBtn.textContent = '🗺️ Map';
 
-  // Always reload iframe (prevents rendering artifacts)
   mapIframe.src = 'map.html';
-
   mapIframe.onload = () => {
     const lat = parseFloat(latInput.value);
     const lng = parseFloat(lngInput.value);
-
     if (!isNaN(lat) && !isNaN(lng)) {
-      mapIframe.contentWindow.postMessage(
-        { type: 'MOVE_PIN', lat, lng },
-        '*'
-      );
+      mapIframe.contentWindow.postMessage({ type: 'MOVE_PIN', lat, lng }, '*');
     }
   };
 }
 
 function closeMap() {
-  // Destroy iframe FIRST (critical for fixing black box)
   mapIframe.src = 'about:blank';
-
-  // Then collapse layout
   mapPanel.classList.remove('open');
   document.body.classList.remove('map-open');
+  document.body.style.width = '310px';
   openMapBtn.classList.remove('active');
 }
 

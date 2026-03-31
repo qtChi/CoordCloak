@@ -1,6 +1,7 @@
 let currentLat = 40.7128;
 let currentLng = -74.0060;
 let toastTimer;
+let debounceTimer;
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -53,16 +54,92 @@ map.on('click', e => {
   updateCoordDisplay(currentLat, currentLng);
 });
 
-document.getElementById('searchBtn').addEventListener('click', doSearch);
-document.getElementById('searchInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') doSearch();
+// ── Search & autocomplete ─────────────────────────────────────────────────────
+const searchInput   = document.getElementById('searchInput');
+const searchBtn     = document.getElementById('searchBtn');
+const suggestionsEl = document.getElementById('suggestions');
+
+searchBtn.addEventListener('click', () => doSearch(searchInput.value.trim()));
+
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    closeSuggestions();
+    doSearch(searchInput.value.trim());
+  }
+  if (e.key === 'Escape') closeSuggestions();
 });
 
-async function doSearch() {
-  const query = document.getElementById('searchInput').value.trim();
+// Debounced autocomplete as user types
+searchInput.addEventListener('input', () => {
+  const query = searchInput.value.trim();
+  clearTimeout(debounceTimer);
+  if (query.length < 3) { closeSuggestions(); return; }
+  debounceTimer = setTimeout(() => fetchSuggestions(query), 350);
+});
+
+// Close suggestions when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrap')) closeSuggestions();
+});
+
+async function fetchSuggestions(query) {
+  try {
+    const res = await fetch(
+      'https://nominatim.openstreetmap.org/search?format=json&limit=5&q=' + encodeURIComponent(query),
+      { headers: { 'Accept-Language': 'en' } }
+    );
+    const results = await res.json();
+    if (!results.length) { closeSuggestions(); return; }
+    renderSuggestions(results);
+  } catch(e) {
+    closeSuggestions();
+  }
+}
+
+function renderSuggestions(results) {
+  suggestionsEl.innerHTML = '';
+  results.forEach(r => {
+    const item = document.createElement('div');
+    item.className = 'suggestion-item';
+
+    // Split display name into primary (first part) and detail (rest)
+    const parts = r.display_name.split(',');
+    const primary = parts[0].trim();
+    const detail  = parts.slice(1, 3).join(',').trim();
+
+    item.innerHTML = `
+      <div class="place-name">${primary}</div>
+      <div class="place-detail">${detail}</div>
+    `;
+
+    item.addEventListener('click', () => {
+      const lat = parseFloat(r.lat);
+      const lng = parseFloat(r.lon);
+      currentLat = lat;
+      currentLng = lng;
+      marker.setLatLng([lat, lng]);
+      map.setView([lat, lng], 14);
+      updateCoordDisplay(lat, lng);
+      searchInput.value = r.display_name.split(',').slice(0, 2).join(',').trim();
+      closeSuggestions();
+      // Auto-send to CoordCloak popup
+      window.parent.postMessage({ type: 'COORD_UPDATE', lat, lng }, '*');
+      showToast('Sent to CoordCloak ✓', false);
+    });
+
+    suggestionsEl.appendChild(item);
+  });
+  suggestionsEl.classList.add('open');
+}
+
+function closeSuggestions() {
+  suggestionsEl.classList.remove('open');
+  suggestionsEl.innerHTML = '';
+}
+
+async function doSearch(query) {
   if (!query) return;
-  const btn = document.getElementById('searchBtn');
-  btn.textContent = '...';
+  searchBtn.textContent = '...';
   try {
     const res = await fetch(
       'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query),
@@ -80,17 +157,17 @@ async function doSearch() {
   } catch(e) {
     showToast('Search failed — check your connection', true);
   } finally {
-    btn.textContent = 'Go';
+    searchBtn.textContent = 'Go';
   }
 }
 
-// Send coords back to popup via postMessage
+// ── Send coords to popup ──────────────────────────────────────────────────────
 document.getElementById('useBtn').addEventListener('click', () => {
   window.parent.postMessage({ type: 'COORD_UPDATE', lat: currentLat, lng: currentLng }, '*');
   showToast('Sent to CoordCloak ✓', false);
 });
 
-// Listen for pin move commands from popup (preset clicks etc)
+// Listen for pin move commands from popup
 window.addEventListener('message', e => {
   if (e.data && e.data.type === 'MOVE_PIN') {
     const lat = parseFloat(e.data.lat);

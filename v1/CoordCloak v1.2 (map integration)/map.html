@@ -41,6 +41,7 @@
       border-bottom: 1px solid #1e293b;
       display: flex; gap: 6px;
       flex-shrink: 0;
+      position: relative;
     }
     .search-input {
       flex: 1;
@@ -60,6 +61,35 @@
       transition: opacity .15s;
     }
     .search-btn:hover { opacity: .85; }
+
+    /* ── Autocomplete dropdown ── */
+    .suggestions {
+      display: none;
+      position: absolute;
+      top: 100%; left: 12px; right: 12px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      z-index: 9999;
+      box-shadow: 0 8px 24px #00000088;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .suggestions.open { display: block; }
+    .suggestion-item {
+      padding: 8px 10px;
+      font-size: 11px;
+      color: #94a3b8;
+      cursor: pointer;
+      border-bottom: 1px solid #334155;
+      line-height: 1.4;
+      transition: background .1s;
+    }
+    .suggestion-item:last-child { border-bottom: none; }
+    .suggestion-item:hover { background: #273549; color: #e2e8f0; }
+    .suggestion-item .place-name { color: #e2e8f0; font-weight: 600; }
+    .suggestion-item .place-detail { color: #475569; font-size: 10px; margin-top: 1px; }
 
     .coords-bar {
       padding: 7px 12px;
@@ -113,13 +143,14 @@
   <div class="map-header-icon">🗺️</div>
   <div>
     <div class="map-header-title">CoordCloak Map</div>
-    <div class="map-header-sub">Drag the pin or search a place</div>
+    <div class="map-header-sub">Search a place or drag the pin</div>
   </div>
 </div>
 
 <div class="search-wrap">
-  <input type="text" class="search-input" id="searchInput" placeholder="Search address or place name..." />
+  <input type="text" class="search-input" id="searchInput" placeholder="Search address, place, city..." autocomplete="off" />
   <button class="search-btn" id="searchBtn">Go</button>
+  <div class="suggestions" id="suggestions"></div>
 </div>
 
 <div class="coords-bar">
