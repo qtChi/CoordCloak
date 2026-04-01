@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CoordCloak Map</title>
+  <link rel="stylesheet" href="leaflet.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .map-header {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-bottom: 1px solid #1e293b;
+      padding: 10px 12px;
+      display: flex; align-items: center; gap: 8px;
+      flex-shrink: 0;
+    }
+    .map-header-icon {
+      width: 24px; height: 24px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; flex-shrink: 0;
+    }
+    .map-header-title { font-size: 13px; font-weight: 700; color: #f1f5f9; }
+    .map-header-sub   { font-size: 10px; color: #64748b; }
+
+    .search-wrap {
+      padding: 10px 12px;
+      background: #0f1117;
+      border-bottom: 1px solid #1e293b;
+      display: flex; gap: 6px;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .search-input {
+      flex: 1;
+      background: #1e293b; border: 1px solid #334155;
+      color: #e2e8f0; border-radius: 7px;
+      padding: 7px 10px; font-size: 12px;
+      font-family: inherit;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .search-input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px #6366f120; }
+    .search-btn {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none; border-radius: 7px;
+      color: #fff; padding: 7px 12px;
+      font-size: 12px; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
+      transition: opacity .15s;
+    }
+    .search-btn:hover { opacity: .85; }
+
+    .suggestions {
+      display: none;
+      position: absolute;
+      top: 100%; left: 12px; right: 12px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      z-index: 9999;
+      box-shadow: 0 8px 24px #00000088;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .suggestions.open { display: block; }
+    .suggestion-item {
+      padding: 8px 10px;
+      font-size: 11px;
+      color: #94a3b8;
+      cursor: pointer;
+      border-bottom: 1px solid #334155;
+      line-height: 1.4;
+      transition: background .1s;
+    }
+    .suggestion-item:last-child { border-bottom: none; }
+    .suggestion-item:hover { background: #273549; color: #e2e8f0; }
+    .suggestion-item .place-name { color: #e2e8f0; font-weight: 600; }
+    .suggestion-item .place-detail { color: #475569; font-size: 10px; margin-top: 1px; }
+
+    .coords-bar {
+      padding: 7px 12px;
+      background: #0a0d14;
+      border-bottom: 1px solid #1e293b;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .coords-text {
+      font-size: 11px; font-family: 'SF Mono', 'Fira Code', monospace;
+      color: #64748b;
+    }
+    .coords-text span { color: #a5b4fc; font-weight: 600; }
+    .use-btn {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none; color: #fff; border-radius: 6px;
+      padding: 4px 12px; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: opacity .15s;
+    }
+    .use-btn:hover { opacity: .85; }
+
+    #map { flex: 1; width: 100%; }
+
+    .toast {
+      position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+      background: #162032; border: 1px solid #22c55e44;
+      border-radius: 7px; padding: 6px 12px;
+      font-size: 11px; color: #4ade80;
+      display: none; white-space: nowrap;
+      z-index: 9999;
+    }
+    .toast.show { display: block; }
+    .toast.error { border-color: #ef444444; color: #f87171; background: #200f0f; }
+
+    .leaflet-container { background: #1e293b; }
+    .leaflet-control-zoom a {
+      background: #1e293b !important; color: #e2e8f0 !important;
+      border-color: #334155 !important;
+    }
+    .leaflet-control-zoom a:hover { background: #273549 !important; }
+    .leaflet-control-attribution {
+      background: #0f111788 !important; color: #475569 !important;
+      font-size: 9px !important;
+    }
+    .leaflet-control-attribution a { color: #64748b !important; }
+  </style>
+</head>
+<body>
+
+<div class="map-header">
+  <div class="map-header-icon">🗺️</div>
+  <div>
+    <div class="map-header-title">CoordCloak Map</div>
+    <div class="map-header-sub">Search a place or drag the pin</div>
+  </div>
+</div>
+
+<div class="search-wrap">
+  <input type="text" class="search-input" id="searchInput" placeholder="Search address, place, city..." autocomplete="off" />
+  <button class="search-btn" id="searchBtn">Go</button>
+  <div class="suggestions" id="suggestions"></div>
+</div>
+
+<div class="coords-bar">
+  <div class="coords-text">Pin: <span id="coordDisplay">—</span></div>
+  <button class="use-btn" id="useBtn">Use in CoordCloak</button>
+</div>
+
+<div id="map"></div>
+<div class="toast" id="toast"></div>
+
+<script src="leaflet.js"></script>
+<script src="browser-polyfill.min.js"></script>
+<script src="map.js"></script>
+</body>
+</html>
