@@ -260,9 +260,18 @@ function buildCard(profile) {
     if (hex === profile.color) swatch.style.borderColor = '#fff';
     swatch.addEventListener('click', e => {
       e.stopPropagation();
+      // Update storage
       updateProfileField(profile.id, 'color', hex);
+      // Update dot color directly in DOM — no re-render needed
+      dot.style.background = hex;
+      // Update swatch borders to show new selection
+      popover.querySelectorAll('.color-swatch').forEach(s => {
+        s.style.borderColor = s.style.background === hex ? '#fff' : 'transparent';
+      });
+      // Close popover
       popover.classList.remove('open');
-      renderSaved();
+      // Update profile object so rename still works correctly
+      profile.color = hex;
     });
     popover.appendChild(swatch);
   });
